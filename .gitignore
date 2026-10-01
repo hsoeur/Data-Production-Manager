@@ -1,0 +1,14 @@
+node_modules/
+.npm-cache/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.local
+*.log
+.DS_Store
+.idea/
+.vscode/
+test-results/
+playwright-report/
