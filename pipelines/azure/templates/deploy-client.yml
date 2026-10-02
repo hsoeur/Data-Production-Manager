@@ -89,10 +89,10 @@ stages:
                     $remote = "$(SERVER_USER)@$(SERVER_IP)"
                     $remoteArchive = "$(SERVER_PATH)\$archiveName"
 
-                    & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "if not exist `"$(SERVER_PATH)`" mkdir `"$(SERVER_PATH)`""
+                    & plink.exe -batch -pw "$(SSH_PASSWORD)" $remote "if not exist `"$(SERVER_PATH)`" mkdir `"$(SERVER_PATH)`""
                     if ($LASTEXITCODE -ne 0) { throw "Unable to create the remote deployment directory." }
 
-                    & pscp.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $localArchive "${remote}:$remoteArchive"
+                    & pscp.exe -batch -pw "$(SSH_PASSWORD)" $localArchive "${remote}:$remoteArchive"
                     if ($LASTEXITCODE -ne 0) { throw "Unable to transfer the Docker image." }
                   displayName: Transfer Docker image
 
@@ -105,7 +105,7 @@ stages:
                     $rollbackImage = "$(IMAGE_NAME):rollback"
 
                     function Invoke-Remote([string] $Command) {
-                      & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote $Command
+                      & plink.exe -batch -pw "$(SSH_PASSWORD)" $remote $Command
                       if ($LASTEXITCODE -ne 0) { throw "Remote command failed: $Command" }
                     }
 
@@ -138,13 +138,13 @@ stages:
                     }
 
                     if (-not $healthy) {
-                      & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "docker logs --tail 100 $(CONTAINER_NAME)"
-                      & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "docker rm --force $(CONTAINER_NAME) >nul 2>&1 || exit /b 0"
-                      & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "docker image inspect $rollbackImage >nul 2>&1 && docker run --detach --name $(CONTAINER_NAME) --restart unless-stopped --publish $(APP_PORT):$(CONTAINER_PORT) --env API_DATA_BASE_URL=$(API_DATA_BASE_URL) $rollbackImage || exit /b 1"
+                      & plink.exe -batch -pw "$(SSH_PASSWORD)" $remote "docker logs --tail 100 $(CONTAINER_NAME)"
+                      & plink.exe -batch -pw "$(SSH_PASSWORD)" $remote "docker rm --force $(CONTAINER_NAME) >nul 2>&1 || exit /b 0"
+                      & plink.exe -batch -pw "$(SSH_PASSWORD)" $remote "docker image inspect $rollbackImage >nul 2>&1 && docker run --detach --name $(CONTAINER_NAME) --restart unless-stopped --publish $(APP_PORT):$(CONTAINER_PORT) --env API_DATA_BASE_URL=$(API_DATA_BASE_URL) $rollbackImage || exit /b 1"
                       throw "The new container did not become healthy. Rollback was attempted."
                     }
 
-                    & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "docker tag $versionedImage $currentImage"
+                    & plink.exe -batch -pw "$(SSH_PASSWORD)" $remote "docker tag $versionedImage $currentImage"
                     if ($LASTEXITCODE -ne 0) { throw "Unable to promote the image to current." }
 
                     Write-Host "${{ parameters.displayName }} is responding at $url"

@@ -71,7 +71,7 @@ Les définitions dans `pipelines/` déclenchent uniquement le client concerné. 
 | Modèles d’étiquettes | 12006 | 80 | `pipelines/templates.yml` |
 | Firmwares | 12007 | 80 | `pipelines/firmwares.yml` |
 
-Les trois pipelines étendent `pipelines/azure/templates/deploy-client.yml`. Deux variables doivent être configurées dans Azure DevOps : le mot de passe secret `SSH_PASSWORD` et l’empreinte publique du serveur `SSH_HOST_KEY` attendue par PuTTY. Elles ne doivent jamais être enregistrées dans le dépôt. Les branches de développement construisent et valident les images, mais seule la branche `main` exécute le stage de production.
+Les trois pipelines étendent `pipelines/azure/templates/deploy-client.yml`. Le mot de passe doit être configuré dans Azure DevOps avec la variable secrète `SSH_PASSWORD`; il ne doit jamais être enregistré dans le dépôt. La clé SSH du serveur doit avoir été acceptée une première fois dans le cache PuTTY du compte qui exécute l’agent `VM-DEVOPS`. Les branches de développement construisent et valident les images, mais seule la branche `main` exécute le stage de production.
 
 Les images reçoivent un tag immuable basé sur `Build.BuildId`. Après un contrôle HTTP réussi, l’image est promue avec le tag `current`. L’image précédemment active est conservée sous le tag `rollback` et redémarrée automatiquement si le nouveau conteneur ne devient pas disponible.
 
