@@ -1,10 +1,7 @@
-FROM node:22-alpine AS builder
+ARG BUILDER_IMAGE=pdm-build-deps:c3fda0e48f41
+FROM ${BUILDER_IMAGE} AS builder
 
 WORKDIR /app
-COPY package.json package-lock.json ./
-COPY apps/firmwares/package.json apps/firmwares/package.json
-COPY packages/shared/package.json packages/shared/package.json
-RUN npm ci
 COPY apps/firmwares apps/firmwares
 COPY packages/shared packages/shared
 RUN npm run build:firmwares

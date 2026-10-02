@@ -25,6 +25,7 @@ variables:
   CONTAINER_PORT: "80"
   API_BASE_URL: "http://192.168.1.104:10001/api"
   ARTIFACT_NAME: "docker-image-firmwares"
+  BUILDER_IMAGE: "pdm-build-deps:c3fda0e48f41"
 
 stages:
   - stage: Build
@@ -34,8 +35,18 @@ stages:
         displayName: "Prepare Docker artifact"
         steps:
           - script: |
+              docker image inspect $(BUILDER_IMAGE) > NUL 2>&1
+              if errorlevel 1 (
+                echo "Missing offline builder image: $(BUILDER_IMAGE)"
+                exit /b 1
+              )
+              docker image inspect nginx:1.29-alpine > NUL 2>&1
+              if errorlevel 1 (
+                echo "Missing offline runtime image: nginx:1.29-alpine"
+                exit /b 1
+              )
               echo "Building Docker image..."
-              docker build -t $(IMAGE_NAME):latest -f apps/firmwares/Dockerfile .
+              docker build --pull=false --network=none --build-arg BUILDER_IMAGE=$(BUILDER_IMAGE) -t $(IMAGE_NAME):latest -f apps/firmwares/Dockerfile .
             displayName: "Build Docker"
 
           - script: |

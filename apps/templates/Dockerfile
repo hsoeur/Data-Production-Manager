@@ -1,10 +1,7 @@
-FROM node:22-alpine AS builder
+ARG BUILDER_IMAGE=pdm-build-deps:c3fda0e48f41
+FROM ${BUILDER_IMAGE} AS builder
 
 WORKDIR /app
-COPY package.json package-lock.json ./
-COPY apps/templates/package.json apps/templates/package.json
-COPY packages/shared/package.json packages/shared/package.json
-RUN npm ci
 COPY apps/templates apps/templates
 COPY packages/shared packages/shared
 RUN npm run build:templates

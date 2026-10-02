@@ -76,3 +76,24 @@ Chaque client possède une pipeline autonome calquée sur le processus déjà va
 ### Reverse proxy
 
 Le serveur PDM ne possède pas encore de reverse proxy identifié. Les déploiements utilisent donc les ports publics ci-dessus. Quand un proxy et les trois noms DNS seront disponibles, les conteneurs pourront rejoindre un réseau Docker privé sans publier directement `12005`, `12006` et `12007`; le proxy portera alors les routes HTTP(S) et les certificats TLS.
+
+### Build hors ligne sur VM-DEVOPS
+
+L’agent `VM-DEVOPS` n’ayant pas accès à Internet, les pipelines utilisent une image builder contenant les dépendances npm du monorepo :
+
+```text
+pdm-build-deps:c3fda0e48f41
+```
+
+Le moteur Docker Linux utilisé par l’agent doit contenir cette image ainsi que `nginx:1.29-alpine`. Le bundle préparé sur une machine connectée doit être copié sur `VM-DEVOPS`, puis chargé depuis le compte qui exécute l’agent :
+
+```powershell
+docker context use desktop-linux
+docker load --input C:\Deploy\images\pdm-offline-build-images-c3fda0e48f41.tar
+docker image inspect pdm-build-deps:c3fda0e48f41
+docker image inspect nginx:1.29-alpine
+```
+
+Les pipelines vérifient explicitement la présence de ces images et exécutent `docker build` avec `--pull=false --network=none`.
+
+Après toute modification de `package-lock.json`, l’image builder doit être reconstruite sur une machine connectée avec `docker/Dockerfile.dependencies`, recevoir un nouveau tag dérivé du hash du lockfile, puis être rechargée sur `VM-DEVOPS`.
