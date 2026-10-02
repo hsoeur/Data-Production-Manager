@@ -1,0 +1,152 @@
+parameters:
+  - name: displayName
+    type: string
+  - name: dockerfile
+    type: string
+  - name: imageName
+    type: string
+  - name: artifactName
+    type: string
+  - name: serverPath
+    type: string
+  - name: containerName
+    type: string
+  - name: appPort
+    type: string
+
+pool:
+  name: Default
+  demands:
+    - agent.name -equals VM-DEVOPS
+
+variables:
+  IMAGE_NAME: ${{ parameters.imageName }}
+  ARTIFACT_NAME: ${{ parameters.artifactName }}
+  SERVER_USER: adminprod
+  SERVER_IP: 192.168.1.104
+  SERVER_PATH: ${{ parameters.serverPath }}
+  CONTAINER_NAME: ${{ parameters.containerName }}
+  APP_PORT: ${{ parameters.appPort }}
+  CONTAINER_PORT: '80'
+  API_DATA_BASE_URL: http://192.168.1.104:10001/api
+
+stages:
+  - stage: Build
+    displayName: Build ${{ parameters.displayName }} image
+    jobs:
+      - job: Build
+        displayName: Build and export Docker image
+        steps:
+          - checkout: self
+            clean: true
+
+          - powershell: |
+              $ErrorActionPreference = 'Stop'
+              $image = "$(IMAGE_NAME):$(Build.BuildId)"
+              docker build --pull --file "${{ parameters.dockerfile }}" --tag $image .
+              if ($LASTEXITCODE -ne 0) { throw "Docker build failed with exit code $LASTEXITCODE." }
+            displayName: Build Docker image
+
+          - powershell: |
+              $ErrorActionPreference = 'Stop'
+              $image = "$(IMAGE_NAME):$(Build.BuildId)"
+              $archive = "$(Build.ArtifactStagingDirectory)\$(IMAGE_NAME)-$(Build.BuildId).tar"
+              docker save $image --output $archive
+              if ($LASTEXITCODE -ne 0) { throw "Docker save failed with exit code $LASTEXITCODE." }
+            displayName: Export Docker image
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish Docker image artifact
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)\$(IMAGE_NAME)-$(Build.BuildId).tar'
+              artifactName: '$(ARTIFACT_NAME)'
+
+  - stage: Deploy
+    displayName: Deploy ${{ parameters.displayName }}
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy to production server
+        environment: production-${{ lower(parameters.displayName) }}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: none
+
+                - task: DownloadBuildArtifacts@0
+                  displayName: Download Docker image artifact
+                  inputs:
+                    buildType: current
+                    artifactName: '$(ARTIFACT_NAME)'
+                    downloadPath: '$(Pipeline.Workspace)'
+
+                - powershell: |
+                    $ErrorActionPreference = 'Stop'
+                    $archiveName = "$(IMAGE_NAME)-$(Build.BuildId).tar"
+                    $localArchive = "$(Pipeline.Workspace)\$(ARTIFACT_NAME)\$archiveName"
+                    $remote = "$(SERVER_USER)@$(SERVER_IP)"
+                    $remoteArchive = "$(SERVER_PATH)\$archiveName"
+
+                    & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "if not exist `"$(SERVER_PATH)`" mkdir `"$(SERVER_PATH)`""
+                    if ($LASTEXITCODE -ne 0) { throw "Unable to create the remote deployment directory." }
+
+                    & pscp.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $localArchive "${remote}:$remoteArchive"
+                    if ($LASTEXITCODE -ne 0) { throw "Unable to transfer the Docker image." }
+                  displayName: Transfer Docker image
+
+                - powershell: |
+                    $ErrorActionPreference = 'Stop'
+                    $remote = "$(SERVER_USER)@$(SERVER_IP)"
+                    $archiveName = "$(IMAGE_NAME)-$(Build.BuildId).tar"
+                    $versionedImage = "$(IMAGE_NAME):$(Build.BuildId)"
+                    $currentImage = "$(IMAGE_NAME):current"
+                    $rollbackImage = "$(IMAGE_NAME):rollback"
+
+                    function Invoke-Remote([string] $Command) {
+                      & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote $Command
+                      if ($LASTEXITCODE -ne 0) { throw "Remote command failed: $Command" }
+                    }
+
+                    Invoke-Remote "docker load --input `"$(SERVER_PATH)\$archiveName`""
+                    Invoke-Remote "docker image inspect $currentImage >nul 2>&1 && docker tag $currentImage $rollbackImage || exit /b 0"
+                    Invoke-Remote "docker rm --force $(CONTAINER_NAME) >nul 2>&1 || exit /b 0"
+                    Invoke-Remote "docker run --detach --name $(CONTAINER_NAME) --restart unless-stopped --publish $(APP_PORT):$(CONTAINER_PORT) --env API_DATA_BASE_URL=$(API_DATA_BASE_URL) $versionedImage"
+                  displayName: Start versioned container
+
+                - powershell: |
+                    $ErrorActionPreference = 'Stop'
+                    $url = "http://$(SERVER_IP):$(APP_PORT)/"
+                    $remote = "$(SERVER_USER)@$(SERVER_IP)"
+                    $versionedImage = "$(IMAGE_NAME):$(Build.BuildId)"
+                    $currentImage = "$(IMAGE_NAME):current"
+                    $rollbackImage = "$(IMAGE_NAME):rollback"
+                    $healthy = $false
+
+                    for ($attempt = 1; $attempt -le 12; $attempt++) {
+                      try {
+                        $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+                        if ($response.StatusCode -eq 200) {
+                          $healthy = $true
+                          break
+                        }
+                      } catch {
+                        Write-Host "Health check $attempt/12 failed: $($_.Exception.Message)"
+                      }
+                      Start-Sleep -Seconds 5
+                    }
+
+                    if (-not $healthy) {
+                      & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "docker logs --tail 100 $(CONTAINER_NAME)"
+                      & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "docker rm --force $(CONTAINER_NAME) >nul 2>&1 || exit /b 0"
+                      & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "docker image inspect $rollbackImage >nul 2>&1 && docker run --detach --name $(CONTAINER_NAME) --restart unless-stopped --publish $(APP_PORT):$(CONTAINER_PORT) --env API_DATA_BASE_URL=$(API_DATA_BASE_URL) $rollbackImage || exit /b 1"
+                      throw "The new container did not become healthy. Rollback was attempted."
+                    }
+
+                    & plink.exe -batch -hostkey "$(SSH_HOST_KEY)" -pw "$(SSH_PASSWORD)" $remote "docker tag $versionedImage $currentImage"
+                    if ($LASTEXITCODE -ne 0) { throw "Unable to promote the image to current." }
+
+                    Write-Host "${{ parameters.displayName }} is responding at $url"
+                  displayName: Verify deployment and promote image
+

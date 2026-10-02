@@ -62,3 +62,19 @@ L’URL d’`Api.Data` est injectée au démarrage avec `API_DATA_BASE_URL`.
 Le socle commun reste intégré sur `main`. Chaque client possède une branche de développement dédiée : `codex/develop/tolerances`, `codex/develop/templates` et `codex/develop/firmwares`. Les travaux courts peuvent partir de ces branches avec le préfixe `codex/feature/<client>/<sujet>`.
 
 Les définitions dans `pipelines/` déclenchent uniquement le client concerné. Une modification de `packages/shared` déclenche les trois pipelines, car elle peut affecter les trois applications.
+
+### Déploiements actuels
+
+| Client | Port public | Port du conteneur | Pipeline |
+| --- | ---: | ---: | --- |
+| Tolérances | 12005 | 80 | `pipelines/tolerances.yml` |
+| Modèles d’étiquettes | 12006 | 80 | `pipelines/templates.yml` |
+| Firmwares | 12007 | 80 | `pipelines/firmwares.yml` |
+
+Les trois pipelines étendent `pipelines/azure/templates/deploy-client.yml`. Deux variables doivent être configurées dans Azure DevOps : le mot de passe secret `SSH_PASSWORD` et l’empreinte publique du serveur `SSH_HOST_KEY` attendue par PuTTY. Elles ne doivent jamais être enregistrées dans le dépôt. Les branches de développement construisent et valident les images, mais seule la branche `main` exécute le stage de production.
+
+Les images reçoivent un tag immuable basé sur `Build.BuildId`. Après un contrôle HTTP réussi, l’image est promue avec le tag `current`. L’image précédemment active est conservée sous le tag `rollback` et redémarrée automatiquement si le nouveau conteneur ne devient pas disponible.
+
+### Reverse proxy
+
+Le serveur PDM ne possède pas encore de reverse proxy identifié. Les déploiements utilisent donc les ports publics ci-dessus. Quand un proxy et les trois noms DNS seront disponibles, les conteneurs pourront rejoindre un réseau Docker privé sans publier directement `12005`, `12006` et `12007`; le proxy portera alors les routes HTTP(S) et les certificats TLS.

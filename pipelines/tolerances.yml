@@ -3,35 +3,34 @@ trigger:
     include:
       - main
       - codex/develop/tolerances
-      - codex/feature/tolerances/*
   paths:
     include:
-      - apps/tolerances/*
-      - packages/shared/*
+      - apps/tolerances/**
+      - packages/shared/**
       - package.json
       - package-lock.json
       - pipelines/tolerances.yml
+      - pipelines/azure/templates/deploy-client.yml
 
 pr:
+  branches:
+    include:
+      - main
+      - codex/develop/tolerances
   paths:
     include:
-      - apps/tolerances/*
-      - packages/shared/*
+      - apps/tolerances/**
+      - packages/shared/**
       - package.json
       - package-lock.json
 
-pool:
-  vmImage: ubuntu-latest
-
-steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: 22.13.0
-    displayName: Use Node.js 22.13
-  - script: npm ci
-    displayName: Install workspaces
-  - script: npm run build:tolerances
-    displayName: Build Tolerances
-  - publish: apps/tolerances/dist
-    artifact: pdm-tolerances
-    displayName: Publish Tolerances artifact
+extends:
+  template: azure/templates/deploy-client.yml
+  parameters:
+    displayName: Tolerances
+    dockerfile: apps/tolerances/Dockerfile
+    imageName: ui_tolerance_manager_v2_image
+    artifactName: docker-image-tolerances
+    serverPath: 'C:\Deploy\containers\ui_tolerance_manager_v2_container'
+    containerName: ui_tolerance_manager_v2_container
+    appPort: '12005'

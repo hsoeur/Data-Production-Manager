@@ -3,35 +3,34 @@ trigger:
     include:
       - main
       - codex/develop/templates
-      - codex/feature/templates/*
   paths:
     include:
-      - apps/templates/*
-      - packages/shared/*
+      - apps/templates/**
+      - packages/shared/**
       - package.json
       - package-lock.json
       - pipelines/templates.yml
+      - pipelines/azure/templates/deploy-client.yml
 
 pr:
+  branches:
+    include:
+      - main
+      - codex/develop/templates
   paths:
     include:
-      - apps/templates/*
-      - packages/shared/*
+      - apps/templates/**
+      - packages/shared/**
       - package.json
       - package-lock.json
 
-pool:
-  vmImage: ubuntu-latest
-
-steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: 22.13.0
-    displayName: Use Node.js 22.13
-  - script: npm ci
-    displayName: Install workspaces
-  - script: npm run build:templates
-    displayName: Build Templates
-  - publish: apps/templates/dist
-    artifact: pdm-templates
-    displayName: Publish Templates artifact
+extends:
+  template: azure/templates/deploy-client.yml
+  parameters:
+    displayName: Templates
+    dockerfile: apps/templates/Dockerfile
+    imageName: ui_templates_v2
+    artifactName: docker-image-templates
+    serverPath: 'C:\Deploy\containers\ui_templates_v2'
+    containerName: ui-templates-v2
+    appPort: '12006'

@@ -3,35 +3,34 @@ trigger:
     include:
       - main
       - codex/develop/firmwares
-      - codex/feature/firmwares/*
   paths:
     include:
-      - apps/firmwares/*
-      - packages/shared/*
+      - apps/firmwares/**
+      - packages/shared/**
       - package.json
       - package-lock.json
       - pipelines/firmwares.yml
+      - pipelines/azure/templates/deploy-client.yml
 
 pr:
+  branches:
+    include:
+      - main
+      - codex/develop/firmwares
   paths:
     include:
-      - apps/firmwares/*
-      - packages/shared/*
+      - apps/firmwares/**
+      - packages/shared/**
       - package.json
       - package-lock.json
 
-pool:
-  vmImage: ubuntu-latest
-
-steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: 22.13.0
-    displayName: Use Node.js 22.13
-  - script: npm ci
-    displayName: Install workspaces
-  - script: npm run build:firmwares
-    displayName: Build Firmwares
-  - publish: apps/firmwares/dist
-    artifact: pdm-firmwares
-    displayName: Publish Firmwares artifact
+extends:
+  template: azure/templates/deploy-client.yml
+  parameters:
+    displayName: Firmwares
+    dockerfile: apps/firmwares/Dockerfile
+    imageName: ui_firmware2_v2_image
+    artifactName: docker-image-firmwares
+    serverPath: 'C:\Deploy\containers\ui_firmware2_v2_container'
+    containerName: ui_firmware2_v2_container
+    appPort: '12007'
