@@ -76,28 +76,28 @@ stages:
 
           - script: |
               echo "Creating remote deployment directory..."
-              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "mkdir -p $(SERVER_PATH)"
-              pscp -batch -pw "$(SSH_PASSWORD)" "$(Pipeline.Workspace)/$(ARTIFACT_NAME)/$(IMAGE_NAME).tar" $(SERVER_USER)@$(SERVER_IP):$(SERVER_PATH)/
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "if not exist $(SERVER_PATH) mkdir $(SERVER_PATH)"
+              pscp -batch -pw "$(SSH_PASSWORD)" "$(Pipeline.Workspace)\$(ARTIFACT_NAME)\$(IMAGE_NAME).tar" $(SERVER_USER)@$(SERVER_IP):$(SERVER_PATH)\$(IMAGE_NAME).tar
             displayName: "Transfer Docker image"
 
           - script: |
               echo "Stopping the previous container, if present..."
-              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker stop $(CONTAINER_NAME) || exit 0"
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker stop $(CONTAINER_NAME) || exit /b 0"
             displayName: "Stop previous container"
 
           - script: |
               echo "Removing the previous container, if present..."
-              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker rm $(CONTAINER_NAME) || exit 0"
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker rm $(CONTAINER_NAME) || exit /b 0"
             displayName: "Remove previous container"
 
           - script: |
               echo "Removing the previous image, if present..."
-              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker rmi $(IMAGE_NAME):latest || exit 0"
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker rmi $(IMAGE_NAME):latest || exit /b 0"
             displayName: "Remove previous image"
 
           - script: |
               echo "Loading new Docker image..."
-              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker load -i $(SERVER_PATH)/$(IMAGE_NAME).tar"
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker load -i $(SERVER_PATH)\$(IMAGE_NAME).tar"
             displayName: "Load new Docker image"
 
           - script: |

@@ -85,7 +85,7 @@ L’agent `VM-DEVOPS` n’ayant pas accès à Internet, les pipelines utilisent 
 pdm-build-deps:c3fda0e48f41
 ```
 
-Le moteur Docker Linux utilisé par l’agent doit contenir cette image ainsi que `nginx:1.29-alpine`. Le bundle préparé sur une machine connectée doit être copié sur `VM-DEVOPS`, puis chargé depuis le compte qui exécute l’agent :
+Le moteur Docker Linux utilisé par l’agent Windows Server 2022 doit contenir cette image ainsi que `nginx:1.29-alpine`. Le bundle préparé sur une machine connectée doit être copié sur `VM-DEVOPS`, puis chargé depuis le compte Windows qui exécute l’agent :
 
 ```powershell
 docker context use desktop-linux
