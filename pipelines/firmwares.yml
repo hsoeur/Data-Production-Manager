@@ -2,35 +2,100 @@ trigger:
   branches:
     include:
       - main
-      - codex/develop/firmwares
   paths:
     include:
-      - apps/firmwares/**
-      - packages/shared/**
+      - apps/firmwares/*
+      - packages/shared/*
       - package.json
       - package-lock.json
       - pipelines/firmwares.yml
-      - pipelines/azure/templates/deploy-client.yml
 
-pr:
-  branches:
-    include:
-      - main
-      - codex/develop/firmwares
-  paths:
-    include:
-      - apps/firmwares/**
-      - packages/shared/**
-      - package.json
-      - package-lock.json
+pool:
+  name: Default
+  demands:
+    - agent.name -equals VM-DEVOPS
 
-extends:
-  template: azure/templates/deploy-client.yml
-  parameters:
-    displayName: Firmwares
-    dockerfile: apps/firmwares/Dockerfile
-    imageName: ui_firmware2_v2_image
-    artifactName: docker-image-firmwares
-    serverPath: 'C:\Deploy\containers\ui_firmware2_v2_container'
-    containerName: ui_firmware2_v2_container
-    appPort: '12007'
+variables:
+  IMAGE_NAME: "ui_firmware2_v2_image"
+  SERVER_USER: "adminprod"
+  SERVER_IP: "192.168.1.104"
+  SERVER_PATH: 'C:\Deploy\containers\ui_firmware2_v2_container'
+  CONTAINER_NAME: "ui_firmware2_v2_container"
+  APP_PORT: "12007"
+  CONTAINER_PORT: "80"
+  API_BASE_URL: "http://192.168.1.104:10001/api"
+  ARTIFACT_NAME: "docker-image-firmwares"
+
+stages:
+  - stage: Build
+    displayName: "Prepare Firmwares Docker Image"
+    jobs:
+      - job: Build
+        displayName: "Prepare Docker artifact"
+        steps:
+          - script: |
+              echo "Building Docker image..."
+              docker build -t $(IMAGE_NAME):latest -f apps/firmwares/Dockerfile .
+            displayName: "Build Docker"
+
+          - script: |
+              echo "Saving Docker image..."
+              docker save $(IMAGE_NAME):latest -o "$(Build.ArtifactStagingDirectory)\$(IMAGE_NAME).tar"
+            displayName: "Save Docker image"
+
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Docker image artifact"
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)\$(IMAGE_NAME).tar'
+              artifactName: "$(ARTIFACT_NAME)"
+
+  - stage: Deploy
+    displayName: "Deploy Firmwares on port 12007"
+    dependsOn: Build
+    jobs:
+      - job: Deploy
+        displayName: "Deploy over SSH"
+        steps:
+          - task: DownloadBuildArtifacts@0
+            displayName: "Download Docker image artifact"
+            inputs:
+              buildType: "current"
+              artifactName: "$(ARTIFACT_NAME)"
+              downloadPath: "$(Pipeline.Workspace)"
+
+          - script: |
+              echo "Creating remote deployment directory..."
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "mkdir -p $(SERVER_PATH)"
+              pscp -batch -pw "$(SSH_PASSWORD)" "$(Pipeline.Workspace)/$(ARTIFACT_NAME)/$(IMAGE_NAME).tar" $(SERVER_USER)@$(SERVER_IP):$(SERVER_PATH)/
+            displayName: "Transfer Docker image"
+
+          - script: |
+              echo "Stopping the previous container, if present..."
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker stop $(CONTAINER_NAME) || exit 0"
+            displayName: "Stop previous container"
+
+          - script: |
+              echo "Removing the previous container, if present..."
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker rm $(CONTAINER_NAME) || exit 0"
+            displayName: "Remove previous container"
+
+          - script: |
+              echo "Removing the previous image, if present..."
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker rmi $(IMAGE_NAME):latest || exit 0"
+            displayName: "Remove previous image"
+
+          - script: |
+              echo "Loading new Docker image..."
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker load -i $(SERVER_PATH)/$(IMAGE_NAME).tar"
+            displayName: "Load new Docker image"
+
+          - script: |
+              echo "Starting Firmwares on port $(APP_PORT)..."
+              plink -batch -pw "$(SSH_PASSWORD)" $(SERVER_USER)@$(SERVER_IP) "docker run -d --name $(CONTAINER_NAME) --restart unless-stopped -p $(APP_PORT):$(CONTAINER_PORT) -e API_DATA_BASE_URL=$(API_BASE_URL) $(IMAGE_NAME):latest"
+            displayName: "Start Firmwares container"
+
+          - script: |
+              echo "Checking Firmwares container..."
+              curl.exe --fail --silent --show-error --max-time 30 http://$(SERVER_IP):$(APP_PORT)/ > NUL
+              echo "Firmwares is responding on port $(APP_PORT)."
+            displayName: "Verify Firmwares container"
