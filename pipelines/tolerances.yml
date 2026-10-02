@@ -1,0 +1,37 @@
+trigger:
+  branches:
+    include:
+      - main
+      - codex/develop/tolerances
+      - codex/feature/tolerances/*
+  paths:
+    include:
+      - apps/tolerances/*
+      - packages/shared/*
+      - package.json
+      - package-lock.json
+      - pipelines/tolerances.yml
+
+pr:
+  paths:
+    include:
+      - apps/tolerances/*
+      - packages/shared/*
+      - package.json
+      - package-lock.json
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: 22.13.0
+    displayName: Use Node.js 22.13
+  - script: npm ci
+    displayName: Install workspaces
+  - script: npm run build:tolerances
+    displayName: Build Tolerances
+  - publish: apps/tolerances/dist
+    artifact: pdm-tolerances
+    displayName: Publish Tolerances artifact

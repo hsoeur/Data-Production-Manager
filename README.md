@@ -1,25 +1,34 @@
-# LabelTemplate Manager
+# Production Data Manager
 
-Client Web React/TypeScript pour consulter et maintenir les modèles d'étiquettes exposés par `Api.Data`.
+Monorepo des clients web de gestion des données de production.
 
-## Prérequis
+## Applications
 
-- Node.js 22 ou supérieur
-- Une instance de `Api.Data`
+| Client | Workspace npm | Port local | Répertoire |
+| --- | --- | ---: | --- |
+| Tolérances | `@pdm/tolerances` | 5173 | `apps/tolerances` |
+| Modèles d’étiquettes | `@pdm/templates` | 5175 | `apps/templates` |
+| Firmwares | `@pdm/firmwares` | 5176 | `apps/firmwares` |
+
+Le socle React commun se trouve dans `packages/shared`. Il contient le thème, les providers, le client HTTP, la prise de poste opérateur, la coque visuelle et les composants transverses.
+
+## Installation
+
+Depuis la racine du dépôt :
+
+```powershell
+npm install
+```
 
 ## Démarrage local
 
 ```powershell
-Copy-Item .env.example .env.local
-npm install
-npm run dev
+npm run dev:tolerances
+npm run dev:templates
+npm run dev:firmwares
 ```
 
-Configurer `VITE_API_DATA_BASE_URL` avec l'URL comprenant le segment `/api` :
-
-```text
-VITE_API_DATA_BASE_URL=http://localhost:5000/api
-```
+Chaque commande est indépendante et doit être exécutée dans son propre terminal.
 
 ## Vérifications
 
@@ -28,16 +37,28 @@ npm run build
 npm run lint
 ```
 
-## Configuration Docker
-
-La même image peut être utilisée dans tous les environnements. L'URL de l'API est injectée au démarrage :
+Il est aussi possible de cibler un seul client :
 
 ```powershell
-docker run --rm -p 8080:80 `
-  -e API_DATA_BASE_URL=http://api-data:8080/api `
-  label-template-manager
+npm run build:tolerances
+npm run build:templates
+npm run build:firmwares
 ```
 
-## Limite actuelle des fichiers
+## Images Docker
 
-Les endpoints LabelTemplate enregistrent `TemplateFile` et `Photo` comme chaînes de caractères. Le client sélectionne un fichier local pour en extraire le nom, mais ne transfère pas son contenu.
+Le contexte de build doit être la racine du monorepo :
+
+```powershell
+docker build -f apps/tolerances/Dockerfile -t pdm-tolerances .
+docker build -f apps/templates/Dockerfile -t pdm-templates .
+docker build -f apps/firmwares/Dockerfile -t pdm-firmwares .
+```
+
+L’URL d’`Api.Data` est injectée au démarrage avec `API_DATA_BASE_URL`.
+
+## Branches et pipelines
+
+Le socle commun reste intégré sur `main`. Chaque client possède une branche de développement dédiée : `codex/develop/tolerances`, `codex/develop/templates` et `codex/develop/firmwares`. Les travaux courts peuvent partir de ces branches avec le préfixe `codex/feature/<client>/<sujet>`.
+
+Les définitions dans `pipelines/` déclenchent uniquement le client concerné. Une modification de `packages/shared` déclenche les trois pipelines, car elle peut affecter les trois applications.

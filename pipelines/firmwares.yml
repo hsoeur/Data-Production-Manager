@@ -1,0 +1,37 @@
+trigger:
+  branches:
+    include:
+      - main
+      - codex/develop/firmwares
+      - codex/feature/firmwares/*
+  paths:
+    include:
+      - apps/firmwares/*
+      - packages/shared/*
+      - package.json
+      - package-lock.json
+      - pipelines/firmwares.yml
+
+pr:
+  paths:
+    include:
+      - apps/firmwares/*
+      - packages/shared/*
+      - package.json
+      - package-lock.json
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: 22.13.0
+    displayName: Use Node.js 22.13
+  - script: npm ci
+    displayName: Install workspaces
+  - script: npm run build:firmwares
+    displayName: Build Firmwares
+  - publish: apps/firmwares/dist
+    artifact: pdm-firmwares
+    displayName: Publish Firmwares artifact
