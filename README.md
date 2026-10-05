@@ -9,6 +9,7 @@ Monorepo des clients web de gestion des données de production.
 | Tolérances | `@pdm/tolerances` | 5173 | `apps/tolerances` |
 | Modèles d’étiquettes | `@pdm/templates` | 5175 | `apps/templates` |
 | Firmwares | `@pdm/firmwares` | 5176 | `apps/firmwares` |
+| Programmes de soudure | `@pdm/soldering-programs` | 5177 | `apps/soldering-programs` |
 
 Le socle React commun se trouve dans `packages/shared`. Il contient le thème, les providers, le client HTTP, la prise de poste opérateur, la coque visuelle et les composants transverses.
 
@@ -26,6 +27,7 @@ npm install
 npm run dev:tolerances
 npm run dev:templates
 npm run dev:firmwares
+npm run dev:soldering-programs
 ```
 
 Chaque commande est indépendante et doit être exécutée dans son propre terminal.
@@ -43,6 +45,7 @@ Il est aussi possible de cibler un seul client :
 npm run build:tolerances
 npm run build:templates
 npm run build:firmwares
+npm run build:soldering-programs
 ```
 
 ## Images Docker
@@ -53,15 +56,16 @@ Le contexte de build doit être la racine du monorepo :
 docker build -f apps/tolerances/Dockerfile -t pdm-tolerances .
 docker build -f apps/templates/Dockerfile -t pdm-templates .
 docker build -f apps/firmwares/Dockerfile -t pdm-firmwares .
+docker build -f apps/soldering-programs/Dockerfile -t pdm-soldering-programs .
 ```
 
 L’URL d’`Api.Data` est injectée au démarrage avec `API_DATA_BASE_URL`.
 
 ## Branches et pipelines
 
-Le socle commun reste intégré sur `main`. Chaque client possède une branche de développement dédiée : `codex/develop/tolerances`, `codex/develop/templates` et `codex/develop/firmwares`. Les travaux courts peuvent partir de ces branches avec le préfixe `codex/feature/<client>/<sujet>`.
+Le socle commun reste intégré sur `main`. Chaque client possède une branche de développement dédiée : `codex/develop/tolerances`, `codex/develop/templates`, `codex/develop/firmwares` et `codex/develop/soldering-programs`. Les travaux courts peuvent partir de ces branches avec le préfixe `codex/feature/<client>/<sujet>`.
 
-Les définitions dans `pipelines/` déclenchent uniquement le client concerné. Une modification de `packages/shared` déclenche les trois pipelines, car elle peut affecter les trois applications.
+Les définitions dans `pipelines/` déclenchent uniquement le client concerné. Une modification de `packages/shared` déclenche les quatre pipelines, car elle peut affecter les quatre applications.
 
 ### Déploiements actuels
 
@@ -70,12 +74,13 @@ Les définitions dans `pipelines/` déclenchent uniquement le client concerné. 
 | Tolérances | 12005 | 80 | `pipelines/tolerances.yml` |
 | Modèles d’étiquettes | 12006 | 80 | `pipelines/templates.yml` |
 | Firmwares | 12007 | 80 | `pipelines/firmwares.yml` |
+| Programmes de soudure | 12008 | 80 | `pipelines/soldering-programs.yml` |
 
 Chaque client possède une pipeline autonome calquée sur le processus déjà validé avec l’agent `VM-DEVOPS` : construction Docker, export de l’image, publication de l’artefact, transfert avec PuTTY, remplacement du conteneur et contrôle HTTP. Le mot de passe doit être configuré dans Azure DevOps avec la variable secrète `SSH_PASSWORD`; il ne doit jamais être enregistré dans le dépôt. La clé SSH du serveur doit avoir été acceptée une première fois dans le cache PuTTY du compte qui exécute l’agent.
 
 ### Reverse proxy
 
-Le serveur PDM ne possède pas encore de reverse proxy identifié. Les déploiements utilisent donc les ports publics ci-dessus. Quand un proxy et les trois noms DNS seront disponibles, les conteneurs pourront rejoindre un réseau Docker privé sans publier directement `12005`, `12006` et `12007`; le proxy portera alors les routes HTTP(S) et les certificats TLS.
+Le serveur PDM ne possède pas encore de reverse proxy identifié. Les déploiements utilisent donc les ports publics ci-dessus. Quand un proxy et les quatre noms DNS seront disponibles, les conteneurs pourront rejoindre un réseau Docker privé sans publier directement `12005`, `12006`, `12007` et `12008`; le proxy portera alors les routes HTTP(S) et les certificats TLS.
 
 ### Build hors ligne sur VM-DEVOPS
 

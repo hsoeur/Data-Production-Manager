@@ -14,9 +14,11 @@
     "dev:tolerances": "npm run dev --workspace @pdm/tolerances",
     "dev:templates": "npm run dev --workspace @pdm/templates",
     "dev:firmwares": "npm run dev --workspace @pdm/firmwares",
+    "dev:soldering-programs": "npm run dev --workspace @pdm/soldering-programs",
     "build:tolerances": "npm run build --workspace @pdm/tolerances",
     "build:templates": "npm run build --workspace @pdm/templates",
     "build:firmwares": "npm run build --workspace @pdm/firmwares",
+    "build:soldering-programs": "npm run build --workspace @pdm/soldering-programs",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint packages/shared/src && npm run lint --workspaces --if-present"
   },
