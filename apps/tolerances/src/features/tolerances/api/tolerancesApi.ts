@@ -1,5 +1,5 @@
 import { asCollection, httpClient } from '@pdm/shared/api';
-import type { CopyToleranceBatchRequest, CopyToleranceBatchResponse, Machine, Tolerance, ToleranceInput } from '../models/tolerance';
+import type { CopyToleranceBatchRequest, CopyToleranceBatchResponse, Machine, ProductionOperation, Tolerance, ToleranceInput } from '../models/tolerance';
 
 type ApiTolerance = Omit<Tolerance, 'unitUid'> & { unitUid?: string; unit?: string };
 
@@ -18,6 +18,12 @@ export const tolerancesApi = {
     return asCollection<Machine>(response.data)
       .filter((machine) => machine.machineUid !== 'MachineUid' && machine.label !== 'Label')
       .sort((a, b) => a.machineUid.localeCompare(b.machineUid, 'fr'));
+  },
+
+  async getOperationsByProductUid(productUid: string): Promise<ProductionOperation[]> {
+    const response = await httpClient.get<unknown>('/Operations/basic-by-product-uid', { params: { productUid: productUid.trim() } });
+    return asCollection<ProductionOperation>(response.data)
+      .sort((a, b) => a.operationNumber - b.operationNumber);
   },
 
   async create(input: ToleranceInput): Promise<Tolerance> {

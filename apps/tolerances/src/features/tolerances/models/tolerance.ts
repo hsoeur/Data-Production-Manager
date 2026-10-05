@@ -22,6 +22,17 @@ export type Machine = {
   label: string;
 };
 
+export type ProductionOperation = {
+  operationUid: string;
+  productUid: string;
+  operationNumber: number;
+  label: string;
+  machine: string;
+  prepTime: number;
+  prodTime: number;
+  creationDate: string;
+};
+
 export type CopyToleranceBatchRequest = {
   sourceProductUid: string;
   targetProductUid: string;

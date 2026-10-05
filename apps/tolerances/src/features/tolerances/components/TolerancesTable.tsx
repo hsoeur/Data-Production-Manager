@@ -2,7 +2,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { Box, Button, IconButton, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
 import type { Machine, Tolerance } from '../models/tolerance';
-import { formatProductionDate } from '../utils/dates';
+import { formatProductionDate, isToleranceActive } from '../utils/dates';
 import { ToleranceStatus } from './ToleranceStatus';
 
 type TolerancesTableProps = {
@@ -12,13 +12,15 @@ type TolerancesTableProps = {
 };
 
 const modeLabels: Record<Tolerance['mode'], string> = {
-  Between: 'Entre', Equal: 'Égal', Min: 'Minimum', Max: 'Maximum', Record: 'Enregistrement', Entry: 'Saisie',
+  Between: 'Compris entre', Equal: 'Égal à', Min: 'Minimum', Max: 'Maximum', Record: 'Enregistrement', Entry: 'Saisie',
 };
 
 function criterion(tolerance: Tolerance): string {
-  if (tolerance.mode === 'Between') return `${tolerance.val1} — ${tolerance.val2} ${tolerance.unitUid}`;
+  const unit = tolerance.unitUid === 'Char' ? '' : ` ${tolerance.unitUid}`;
+  if (tolerance.mode === 'Between') return `${tolerance.val1} — ${tolerance.val2}${unit}`;
   if (tolerance.mode === 'Record' || tolerance.mode === 'Entry') return modeLabels[tolerance.mode];
-  return `${modeLabels[tolerance.mode]} ${tolerance.val1} ${tolerance.unitUid}`;
+  if (tolerance.mode === 'Equal' && tolerance.unitUid === 'Char') return `${modeLabels.Equal} "${tolerance.val1}"`;
+  return `${modeLabels[tolerance.mode]} ${tolerance.val1}${unit}`;
 }
 
 export function TolerancesTable({ machines, tolerances, onEdit }: TolerancesTableProps) {
@@ -36,13 +38,13 @@ export function TolerancesTable({ machines, tolerances, onEdit }: TolerancesTabl
           <TableBody>
             {displayed.map((tolerance) => <TableRow key={tolerance.toleranceUid} hover>
               <TableCell><Typography sx={{ color: 'primary.dark', fontWeight: 800 }}>{tolerance.productUid}</Typography></TableCell>
-              <TableCell>Op. {tolerance.operationNumber}</TableCell>
+              <TableCell>{tolerance.operationNumber}</TableCell>
               <TableCell><Typography variant="body2" sx={{ fontWeight: 650 }}>{machineLabels.get(tolerance.machineUid) ?? tolerance.machineUid}</Typography><Typography variant="caption" color="text.secondary">{tolerance.machineUid}</Typography></TableCell>
               <TableCell>{tolerance.label}</TableCell>
               <TableCell><Typography variant="body2" sx={{ fontWeight: 700 }}>{criterion(tolerance)}</Typography><Typography variant="caption" color="text.secondary">{modeLabels[tolerance.mode]}</Typography></TableCell>
               <TableCell><Typography variant="body2">{formatProductionDate(tolerance.startDate)}</Typography><Typography variant="caption" color="text.secondary">au {formatProductionDate(tolerance.endDate)}</Typography></TableCell>
               <TableCell><ToleranceStatus endDate={tolerance.endDate} /></TableCell>
-              <TableCell align="right"><Tooltip title="Modifier"><IconButton color="primary" aria-label={`Modifier ${tolerance.label}`} onClick={() => onEdit(tolerance)}><EditOutlinedIcon /></IconButton></Tooltip></TableCell>
+              <TableCell align="right">{isToleranceActive(tolerance.endDate) ? <Tooltip title="Modifier"><IconButton color="primary" aria-label={`Modifier ${tolerance.label}`} onClick={() => onEdit(tolerance)}><EditOutlinedIcon /></IconButton></Tooltip> : <Typography variant="caption" color="text.secondary">Lecture seule</Typography>}</TableCell>
             </TableRow>)}
           </TableBody>
         </Table>
@@ -50,9 +52,9 @@ export function TolerancesTable({ machines, tolerances, onEdit }: TolerancesTabl
 
       <Stack sx={{ display: { xs: 'flex', lg: 'none' } }} divider={<Box sx={{ borderBottom: '1px solid', borderColor: 'divider' }} />}>
         {displayed.map((tolerance) => <Box key={tolerance.toleranceUid} sx={{ p: 2.5 }}>
-          <Stack direction="row" justifyContent="space-between" spacing={2}><Box><Typography sx={{ color: 'primary.dark', fontWeight: 800 }}>{tolerance.productUid}</Typography><Typography variant="body2" color="text.secondary">Op. {tolerance.operationNumber} · {machineLabels.get(tolerance.machineUid) ?? tolerance.machineUid}</Typography></Box><ToleranceStatus endDate={tolerance.endDate} /></Stack>
+          <Stack direction="row" justifyContent="space-between" spacing={2}><Box><Typography sx={{ color: 'primary.dark', fontWeight: 800 }}>{tolerance.productUid}</Typography><Typography variant="body2" color="text.secondary">{tolerance.operationNumber} · {machineLabels.get(tolerance.machineUid) ?? tolerance.machineUid}</Typography></Box><ToleranceStatus endDate={tolerance.endDate} /></Stack>
           <Box sx={{ my: 2 }}><Typography sx={{ fontWeight: 750 }}>{tolerance.label}</Typography><Typography variant="body2" color="text.secondary">{criterion(tolerance)}</Typography></Box>
-          <Button variant="outlined" fullWidth startIcon={<EditOutlinedIcon />} onClick={() => onEdit(tolerance)}>Modifier</Button>
+          {isToleranceActive(tolerance.endDate) ? <Button variant="outlined" fullWidth startIcon={<EditOutlinedIcon />} onClick={() => onEdit(tolerance)}>Modifier</Button> : <Typography variant="body2" color="text.secondary" textAlign="center">Tolérance expirée en lecture seule</Typography>}
         </Box>)}
       </Stack>
 

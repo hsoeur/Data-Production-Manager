@@ -1,7 +1,7 @@
 import type { ToleranceMode } from './tolerance';
 
 export const toleranceModes: Array<{ value: ToleranceMode; label: string }> = [
-  { value: 'Between', label: 'Entre deux valeurs' },
+  { value: 'Between', label: 'Compris entre' },
   { value: 'Equal', label: 'Égale à' },
   { value: 'Min', label: 'Minimum' },
   { value: 'Max', label: 'Maximum' },

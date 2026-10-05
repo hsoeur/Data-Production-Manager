@@ -12,6 +12,7 @@ import { AppShell, FeedbackPanel } from '@pdm/shared/ui';
 import { tolerancesApi } from '../api/tolerancesApi';
 import { TolerancesTable } from '../components/TolerancesTable';
 import type { CopyToleranceBatchRequest, Tolerance, ToleranceInput } from '../models/tolerance';
+import { isToleranceActive } from '../utils/dates';
 
 const ToleranceDialog = lazy(() => import('../components/ToleranceDialog').then((module) => ({ default: module.ToleranceDialog })));
 const BatchCopyDialog = lazy(() => import('../components/BatchCopyDialog').then((module) => ({ default: module.BatchCopyDialog })));
@@ -59,7 +60,13 @@ export function TolerancesPage({ operator, onChangeOperator }: TolerancesPagePro
   });
 
   const openCreate = () => { saveMutation.reset(); setEditedTolerance(null); setDialogOpen(true); };
-  const openEdit = (tolerance: Tolerance) => { saveMutation.reset(); setEditedTolerance(tolerance); setDialogOpen(true); };
+  const openEdit = (tolerance: Tolerance) => {
+    if (!isToleranceActive(tolerance.endDate)) {
+      enqueueSnackbar('Une tolérance expirée est disponible en lecture seule.', { variant: 'warning' });
+      return;
+    }
+    saveMutation.reset(); setEditedTolerance(tolerance); setDialogOpen(true);
+  };
   const closeDialog = () => { setDialogOpen(false); setEditedTolerance(null); saveMutation.reset(); };
   const openBatch = () => { copyMutation.reset(); setBatchOpen(true); };
   const operatorName = `${operator.firstName} ${operator.lastName}`.trim();
