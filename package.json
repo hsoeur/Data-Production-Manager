@@ -15,10 +15,12 @@
     "dev:templates": "npm run dev --workspace @pdm/templates",
     "dev:firmwares": "npm run dev --workspace @pdm/firmwares",
     "dev:soldering-programs": "npm run dev --workspace @pdm/soldering-programs",
+    "dev:notifications": "npm run dev --workspace @pdm/notifications",
     "build:tolerances": "npm run build --workspace @pdm/tolerances",
     "build:templates": "npm run build --workspace @pdm/templates",
     "build:firmwares": "npm run build --workspace @pdm/firmwares",
     "build:soldering-programs": "npm run build --workspace @pdm/soldering-programs",
+    "build:notifications": "npm run build --workspace @pdm/notifications",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint packages/shared/src && npm run lint --workspaces --if-present"
   },
